@@ -41,6 +41,7 @@ def init_detector(config, checkpoint=None, device='cuda:0'):
             model.CLASSES = get_classes('coco')
     model.cfg = config  # save the config in the model for convenience
     model.to(device)
+    # switch to evaluation mode (for some specific layers/parts)
     model.eval()
     return model
 

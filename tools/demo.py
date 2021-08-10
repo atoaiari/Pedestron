@@ -30,8 +30,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
-
 def mock_detector(model, image_name, output_dir):
     image = cv2.imread(image_name)
     results = inference_detector(model, image)
