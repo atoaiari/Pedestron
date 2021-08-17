@@ -43,6 +43,8 @@ def parse_args():
 
 
 def main():
+    torch.autograd.set_detect_anomaly(True)
+    
     args = parse_args()
 
     cfg = Config.fromfile(args.config)

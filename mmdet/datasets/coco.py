@@ -82,6 +82,10 @@ class CocoDataset(CustomDataset):
             if ann.get('ignore', False):
                 continue
             x1, y1, w, h = ann['bbox']
+            
+            # add a new variable
+            # orientation = ann['annotation']
+
             #if ann['area'] <= 0 or w < 1 or h < 1:
             #    continue
             if w < 1 or h < 1:

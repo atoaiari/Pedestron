@@ -115,14 +115,15 @@ class BBoxHead(nn.Module):
         if bbox_pred is not None:
             pos_inds = labels > 0
             if self.reg_class_agnostic:
-                pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), 4)[pos_inds]
+                pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), 4)[pos_inds.type(torch.bool)]
             else:
                 pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), -1,
-                                               4)[pos_inds, labels[pos_inds]]
+                                               4)[pos_inds.type(torch.bool),
+                                               labels[pos_inds.type(torch.bool)]]
             losses['loss_bbox'] = self.loss_bbox(
                 pos_bbox_pred,
-                bbox_targets[pos_inds],
-                bbox_weights[pos_inds],
+                bbox_targets[pos_inds.type(torch.bool)],
+                bbox_weights[pos_inds.type(torch.bool)],
                 avg_factor=bbox_targets.size(0),
                 reduction_override=reduction_override)
         return losses
@@ -198,7 +199,7 @@ class BBoxHead(nn.Module):
             keep_inds = pos_is_gts_.new_ones(num_rois)
             keep_inds[:len(pos_is_gts_)] = pos_keep
 
-            bboxes_list.append(bboxes[keep_inds])
+            bboxes_list.append(bboxes[keep_inds.type(torch.bool)])
 
         return bboxes_list
 
