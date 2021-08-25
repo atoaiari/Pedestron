@@ -114,17 +114,6 @@ model = dict(
                 type='SmoothL1Loss',
                 beta=1.0,
                 loss_weight=1.0)),
-        dict(
-            type='BBoxHead',
-            with_cls=True,
-            with_reg=False,
-            in_channels=256,
-            roi_feat_size=7,
-            num_classes=8,
-            loss_cls=dict(
-                type='CrossEntropyLoss',
-                use_sigmoid=False,
-                loss_weight=1.0))
     ],
     mask_roi_extractor=dict(
         type='SingleRoIExtractor',
@@ -242,7 +231,7 @@ data = dict(
     workers_per_gpu=8,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/complete_mebow_dataset/complete_train_hoe.json',
+        ann_file=data_root + 'annotations/complete_mebow_dataset/complete_train_hoe_cut.json',
         img_prefix=data_root + 'images/train2017/',
         img_scale=(1333, 800),
         multiscale_mode='range',
@@ -293,7 +282,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 240
+total_epochs = 1
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dir/coco_mebow'

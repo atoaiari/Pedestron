@@ -70,9 +70,6 @@ class CocoDataset(CustomDataset):
         gt_bboxes = []
         gt_labels = []
         gt_bboxes_ignore = []
-
-        orientation_labels = []
-
         # Two formats are provided.
         # 1. mask: a binary map of the same size of the image.
         # 2. polys: each mask consists of one or several polys, each poly is a
@@ -87,7 +84,7 @@ class CocoDataset(CustomDataset):
             x1, y1, w, h = ann['bbox']
             
             # added a new variable
-            orientation_labels.append(ann['orientation_class'])
+            # orientation_label = ann['orientation_class']
             # print(f"image {ann['id']} - orientation {orientation_label}")
 
             #if ann['area'] <= 0 or w < 1 or h < 1:
@@ -100,9 +97,6 @@ class CocoDataset(CustomDataset):
             else:
                 gt_bboxes.append(bbox)
                 gt_labels.append(self.cat2label[ann['category_id']])
-                # gt_labels.append([self.cat2label[ann['category_id']], ann['orientation_class']])
-                # print(len(gt_labels))
-                # print(gt_labels)
             if with_mask:
                 #create fake segmentation
                 if "segmentation" not in ann:
@@ -132,7 +126,7 @@ class CocoDataset(CustomDataset):
             gt_bboxes_ignore = np.zeros((0, 4), dtype=np.float32)
 
         ann = dict(
-            bboxes=gt_bboxes, labels=gt_labels, bboxes_ignore=gt_bboxes_ignore, orientation_labels=orientation_labels)
+            bboxes=gt_bboxes, labels=gt_labels, bboxes_ignore=gt_bboxes_ignore)
 
         if with_mask:
             ann['masks'] = gt_masks

@@ -1,5 +1,10 @@
 from __future__ import division
 
+# for testing, env variables outside code are preferable
+# import os
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import argparse
 import os
 from mmcv import Config
@@ -78,6 +83,7 @@ def main():
         cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
 
     train_dataset = build_dataset(cfg.data.train)
+    print(train_dataset)
     if cfg.checkpoint_config is not None:
         # save mmdet version, config file content and class names in
         # checkpoints as meta data

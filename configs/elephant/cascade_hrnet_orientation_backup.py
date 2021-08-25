@@ -114,17 +114,6 @@ model = dict(
                 type='SmoothL1Loss',
                 beta=1.0,
                 loss_weight=1.0)),
-        dict(
-            type='BBoxHead',
-            with_cls=True,
-            with_reg=False,
-            in_channels=256,
-            roi_feat_size=7,
-            num_classes=8,
-            loss_cls=dict(
-                type='CrossEntropyLoss',
-                use_sigmoid=False,
-                loss_weight=1.0))
     ],
     mask_roi_extractor=dict(
         type='SingleRoIExtractor',

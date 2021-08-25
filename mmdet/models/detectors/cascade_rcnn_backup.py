@@ -127,18 +127,6 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                       proposals=None):
         x = self.extract_feat(img)
 
-        # print("######## train forward ##########")
-        # print(gt_labels)
-        # print(gt_labels[0])
-        # print(gt_labels[0].shape)
-
-        # print("######## after ##########")
-        # gt_labels = [gt_labels[0][:,0]]
-        # print(gt_labels)
-        # print(gt_labels[0])
-        # print(gt_labels[0].shape)
-
-
         losses = dict()
 
         if self.with_rpn:
