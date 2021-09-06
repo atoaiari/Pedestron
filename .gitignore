@@ -119,3 +119,6 @@ work_dirs/
 
 models_pretrained/
 result_demo/
+ped_env/
+tools/ECPB/
+work_dir/
