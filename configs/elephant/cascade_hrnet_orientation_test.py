@@ -260,7 +260,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/complete_mebow_dataset/complete_train_hoe_cut.json',
         img_prefix=data_root + 'images/train2017/',
-        img_scale=(800, 480),
+        img_scale=(500, 300),
         multiscale_mode='range',
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
@@ -280,7 +280,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/complete_mebow_dataset/complete_val_hoe.json',
         img_prefix=data_root + 'images/val2017/',
-        img_scale=(800, 480),
+        img_scale=(500, 300),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0,
@@ -309,7 +309,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 1
+total_epochs = 10
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dir/coco_mebow'
