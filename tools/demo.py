@@ -10,6 +10,7 @@ import torch
 import glob
 import json
 import mmcv
+import numpy as np
 
 from mmdet.apis import inference_detector, init_detector, show_result
 
@@ -32,7 +33,21 @@ def parse_args():
 
 def mock_detector(model, image_name, output_dir):
     image = cv2.imread(image_name)
-    results = inference_detector(model, image)
+    bbox_result, segm_result, orientation_result = inference_detector(model, image)
+
+    ori_bboxes = np.vstack(orientation_result)
+    ori_labels = [
+        np.full(bbox.shape[0], i, dtype=np.int32)
+        for i, bbox in enumerate(orientation_result)
+    ]
+    ori_labels = np.concatenate(ori_labels)
+    ori_scores = ori_bboxes[:, -1]
+    inds = ori_scores > 0.3
+    bboxes = ori_bboxes[inds, :]
+    labels = ori_labels[inds]
+    print(f"orientation labels: {len(labels)}")
+
+    results = (bbox_result, segm_result)
     basename = os.path.basename(image_name).split('.')[0]
     result_name = basename + "_result.jpg"
     result_name = os.path.join(output_dir, result_name)
