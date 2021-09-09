@@ -102,7 +102,7 @@ class CocoDataset(CustomDataset):
                 gt_bboxes.append(bbox)
                 # gt_labels.append(self.cat2label[ann['category_id']])
                 only_gt_labels.append(self.cat2label[ann['category_id']])
-                gt_labels.append([self.cat2label[ann['category_id']], ann['orientation_class']-1])
+                gt_labels.append([self.cat2label[ann['category_id']], ann['orientation_class']])
             if with_mask:
                 #create fake segmentation
                 if "segmentation" not in ann:
