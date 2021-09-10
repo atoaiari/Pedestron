@@ -51,7 +51,7 @@ def run_detector_on_dataset():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     print(input_dir)
-    eval_imgs = glob.glob(os.path.join(input_dir, '*.png'))
+    eval_imgs = glob.glob(os.path.join(input_dir, '*.png')) + glob.glob(os.path.join(input_dir, '*.jpg')) + glob.glob(os.path.join(input_dir, '*.jpeg'))
     print(eval_imgs)
 
     model = init_detector(
