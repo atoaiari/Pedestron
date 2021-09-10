@@ -125,14 +125,14 @@ train_cfg = dict(
     orientation_head = dict(
         assigner=dict(
             type='MaxIoUAssigner',
-            pos_iou_thr=0.5,
-            neg_iou_thr=0.5,
-            min_pos_iou=0.5,
+            pos_iou_thr=0.7,
+            neg_iou_thr=0.7,
+            min_pos_iou=0.7,
             ignore_iof_thr=0.7),
         sampler=dict(
             type='RandomSampler',
             num=512,
-            pos_fraction=0.25,
+            pos_fraction=1,
             neg_pos_ub=-1,
             add_gt_as_proposals=True),
         pos_weight=-1,
@@ -158,8 +158,8 @@ img_norm_cfg = dict(
     std=[58.395, 57.12, 57.375], 
     to_rgb=True)
 data = dict(
-    imgs_per_gpu=1,
-    workers_per_gpu=1,
+    imgs_per_gpu=4,
+    workers_per_gpu=8,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/4class_train_hoe.json',
@@ -195,7 +195,8 @@ data = dict(
         test_mode=True))
 # optimizer
 mean_teacher=True
-optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+# optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.001, momentum=0.9)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2), mean_teacher = dict(alpha=0.999))
 # learning policy
 # lr_config = dict(

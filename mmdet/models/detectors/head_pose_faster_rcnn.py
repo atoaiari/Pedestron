@@ -7,6 +7,12 @@ from .. import builder
 from ..registry import DETECTORS
 from mmdet.core import bbox2roi, bbox2result, build_assigner, build_sampler
 
+import cv2 
+import numpy as np
+from mmcv.image import imwrite, imread
+from torchvision.utils import save_image
+import torchvision
+
 
 @DETECTORS.register_module
 class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
@@ -28,6 +34,8 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         super(HeadPoseFasterRCNN, self).__init__()
 
         print("This is a modified Faster RCNN")
+        
+        self.wrong_images = 0
 
         self.backbone = builder.build_backbone(backbone)
 
@@ -164,6 +172,7 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                                                     gt_labels, self.train_cfg.rcnn)
             loss_bbox = self.bbox_head.loss(cls_score, bbox_pred, *bbox_targets)
             losses.update(loss_bbox)
+            detection_loss = loss_bbox
 
         # mask head forward and loss
         if self.with_mask:
@@ -232,6 +241,7 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 feats=[lvl_feat[i][None] for lvl_feat in x])
             sampling_results.append(sampling_result)
 
+        
         rois = bbox2roi([res.bboxes for res in sampling_results])
         # TODO: a more flexible way to decide which feature maps to use
         bbox_feats = self.orientation_bbox_roi_extractor(x[:self.orientation_bbox_roi_extractor.num_inputs], rois)
@@ -240,7 +250,16 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         bbox_targets = self.orientation_bbox_head.get_target(sampling_results, gt_bboxes, orientation_labels, self.train_cfg.orientation_head)
         loss_bbox = self.orientation_bbox_head.loss(cls_score, bbox_pred, *bbox_targets)
         
-        print(loss_bbox)
+        # if loss_bbox['loss_cls'] > 50:
+        #     # print(np.moveaxis(np.array(torch.Tensor.cpu(img[0])), 0, -1).shape)
+        #     # imgg = imread(img[0].cpu().numpy().transpose(2, 0, 1))
+        #     # imwrite(imgg, '/home/vips4/atoaiari/pedestrian_detection/Pedestron/imgs_cache/img.jpg')
+        #     print(detection_loss)
+        #     print(loss_bbox)
+        #     print(f"Found image with loss>50 - img{self.wrong_images} - annotations: {orientation_labels}")
+        #     # save_image(img[0].cpu(), f'/home/vips4/atoaiari/pedestrian_detection/Pedestron/imgs_cache/img{self.wrong_images}.png')
+        #     self.wrong_images += 1
+
 
         for name, value in loss_bbox.items():
             losses['orientation.{}'.format(name)] = value

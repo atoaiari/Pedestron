@@ -60,8 +60,8 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                 self.bbox_head.append(builder.build_head(head))
 
         if orientation_head is not None:
-            self.orientation_bbox_head = builder.build_head(orientation_head)
             self.orientation_bbox_roi_extractor = self.bbox_roi_extractor[-1]
+            self.orientation_bbox_head = builder.build_head(orientation_head)
 
         if mask_head is not None:
             self.mask_head = nn.ModuleList()
@@ -115,6 +115,10 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                 if not self.share_roi_extractor:
                     self.mask_roi_extractor[i].init_weights()
                 self.mask_head[i].init_weights()
+
+        self.orientation_bbox_roi_extractor.init_weights()
+        self.orientation_bbox_head.init_weights()
+
 
     def extract_feat(self, img):
         x = self.backbone(img)
@@ -284,6 +288,7 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
         bbox_targets = bbox_head.get_target(sampling_results, gt_bboxes,
                                             orientation_labels, orientation_train_cfg)
         loss_bbox = bbox_head.loss(cls_score, bbox_pred, *bbox_targets)
+        print(loss_bbox)
         for name, value in loss_bbox.items():
             losses['orientation.{}'.format(name)] = (
                 value * lw if 'loss' in name else value)    
