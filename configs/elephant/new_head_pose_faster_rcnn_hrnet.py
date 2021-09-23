@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='HeadPoseFasterRCNN',
+    type='NewHeadPoseFasterRCNN',
     pretrained='open-mmlab://msra/hrnetv2_w32',
     backbone=dict(
         type='HRNet',
@@ -72,16 +72,9 @@ model = dict(
             beta=1.0, 
             loss_weight=1.0)),
     orientation_head = dict(
-            type='BBoxHead',
-            with_cls=True,
-            with_reg=False,
+            type='LinearClsHead',
             in_channels=256,
-            roi_feat_size=7,
-            num_classes=5,
-            loss_cls=dict(
-                type='CrossEntropyLoss',
-                use_sigmoid=False,
-                loss_weight=1.0)))
+            num_classes=5))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(

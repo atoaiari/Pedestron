@@ -5,6 +5,7 @@ from .anchor_heads import *  # noqa: F401,F403
 from .shared_heads import *  # noqa: F401,F403
 from .bbox_heads import *  # noqa: F401,F403
 from .mask_heads import *  # noqa: F401,F403
+from .cls_heads import *
 from .losses import *  # noqa: F401,F403
 from .detectors import *  # noqa: F401,F403
 from .registry import (BACKBONES, NECKS, ROI_EXTRACTORS, SHARED_HEADS, HEADS,

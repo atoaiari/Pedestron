@@ -15,7 +15,7 @@ import torchvision
 
 
 @DETECTORS.register_module
-class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
+class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                        MaskTestMixin):
 
     def __init__(self,
@@ -97,7 +97,7 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
             if not self.share_roi_extractor:
                 self.mask_roi_extractor.init_weights()
         self.orientation_bbox_roi_extractor.init_weights()
-        self.orientation_bbox_head.init_weights()
+        # self.orientation_bbox_head.init_weights()
 
 
     def extract_feat(self, img):
@@ -150,7 +150,6 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 assign_result = bbox_assigner.assign(
                     proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
                     gt_labels[i])
-                # print(torch.sum(assign_result.gt_inds))
                 sampling_result = bbox_sampler.sample(
                     assign_result,
                     proposal_list[i],
@@ -159,30 +158,13 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                     feats=[lvl_feat[i][None] for lvl_feat in x])
                 sampling_results.append(sampling_result)
 
-        # print(f"sampling results: {len(sampling_results[0].pos_inds) + len(sampling_results[0].neg_inds)}")
-        # print(f"labels: {sampling_results[0].pos_gt_labels}")
-        # print(f"detection pos inds: {sampling_results[0].pos_inds}")
-        # print("####DETECTION#######")
-        
-        # print("\ngt")
-        # print(len(gt_bboxes))
-        # print(gt_bboxes)
-        # print("\nassign\n")
-        # print(f"gt_inds: {len(assign_result.gt_inds)}")
-        # print(f"labels: {len(assign_result.labels)}")
-        # print(assign_result.__dict__)
-        # print("\nsampling\n")
-        # print(torch.max(sampling_results[0].pos_inds))
-        # print(torch.max(sampling_results[0].neg_inds))
-        # print(sampling_results[0].__dict__)
-        # exit()
-
         # bbox head forward and loss
         if self.with_bbox:
             rois = bbox2roi([res.bboxes for res in sampling_results])
             # TODO: a more flexible way to decide which feature maps to use
             bbox_feats = self.bbox_roi_extractor(x[:self.bbox_roi_extractor.num_inputs], 
                                                 rois)
+            print(bbox_feats.shape)
             if self.with_shared_head:
                 bbox_feats = self.shared_head(bbox_feats)
             cls_score, bbox_pred = self.bbox_head(bbox_feats)
@@ -238,62 +220,28 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         # last bbox head forward and loss for orientation
         ######################################################################
 
-        # assign gts and sample proposals
-        sampling_results = []
-        bbox_assigner = build_assigner(self.train_cfg.orientation_head.assigner)
-        bbox_sampler = build_sampler(
-            self.train_cfg.orientation_head.sampler, context=self)
         num_imgs = img.size(0)
         if gt_bboxes_ignore is None:
             gt_bboxes_ignore = [None for _ in range(num_imgs)]
 
-        for i in range(num_imgs):
-            assign_result = bbox_assigner.assign(
-                proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
-                orientation_labels[i])
-            sampling_result = bbox_sampler.sample(
-                assign_result,
-                proposal_list[i],
-                gt_bboxes[i],
-                orientation_labels[i],
-                feats=[lvl_feat[i][None] for lvl_feat in x])
-            sampling_results.append(sampling_result)
-
-        # print(f"orientation pos inds: {sampling_results[0].pos_inds}")
-        
-        # for i in range(num_imgs):
-        #     assign_result = bbox_assigner.assign(proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i], orientation_labels[i])
-        #     print(assign_result.labels)
-        #     sampling_results[i].pos_gt_labels = assign_result.labels[sampling_results[i].pos_inds.detach().cpu().numpy()]
-        
-
-        # print("####ORIENTATION#######")
-        # print(sampling_results[0].__dict__)
-
-        rois = bbox2roi([res.bboxes for res in sampling_results])
+        rois = bbox2roi([res.pos_bboxes for res in sampling_results])
         # TODO: a more flexible way to decide which feature maps to use
         bbox_feats = self.orientation_bbox_roi_extractor(x[:self.orientation_bbox_roi_extractor.num_inputs], rois)
         print(bbox_feats.shape)
-        cls_score, bbox_pred = self.orientation_bbox_head(bbox_feats)
+        # print(gt_bboxes)
+        # print(orientation_labels)
 
-        bbox_targets = self.orientation_bbox_head.get_target(sampling_results, gt_bboxes, orientation_labels, self.train_cfg.orientation_head)
-        loss_bbox = self.orientation_bbox_head.loss(cls_score, bbox_pred, *bbox_targets)
+        orientation_gt_labels = [orientation_labels[0].gather(0, sampling_results[0].pos_assigned_gt_inds)]
+        # print(orientation_gt_labels)
         
-        # if loss_bbox['loss_cls'] > 50:
-        #     # print(np.moveaxis(np.array(torch.Tensor.cpu(img[0])), 0, -1).shape)
-        #     # imgg = imread(img[0].cpu().numpy().transpose(2, 0, 1))
-        #     # imwrite(imgg, '/home/vips4/atoaiari/pedestrian_detection/Pedestron/imgs_cache/img.jpg')
-        #     print(detection_loss)
-        #     print(loss_bbox)
-        #     print(f"Found image with loss>50 - img{self.wrong_images} - annotations: {orientation_labels}")
-        #     # save_image(img[0].cpu(), f'/home/vips4/atoaiari/pedestrian_detection/Pedestron/imgs_cache/img{self.wrong_images}.png')
-        #     self.wrong_images += 1
+        # exit()
+        orientation_losses = self.orientation_bbox_head(bbox_feats, orientation_gt_labels)
 
-        for name, value in loss_bbox.items():
+        for name, value in orientation_losses.items():
             losses['orientation.{}'.format(name)] = value
-
+        print(orientation_losses)
         exit()
-        # print(losses)
+
         return losses
 
     def simple_test(self, img, img_meta, proposals=None, rescale=False):

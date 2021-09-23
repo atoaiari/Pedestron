@@ -26,6 +26,7 @@ class LinearClsHead(ClsHead):
     def __init__(self,
                  num_classes,
                  in_channels,
+                 roi_feat_size=7,
                  init_cfg=dict(type='Normal', layer='Linear', std=0.01),
                  *args,
                  **kwargs):
@@ -33,6 +34,9 @@ class LinearClsHead(ClsHead):
 
         self.in_channels = in_channels
         self.num_classes = num_classes
+        self.roi_feat_size = roi_feat_size
+
+        in_channels *= (self.roi_feat_size * self.roi_feat_size)
 
         if self.num_classes <= 0:
             raise ValueError(
