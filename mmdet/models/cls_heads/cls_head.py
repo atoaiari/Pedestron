@@ -25,7 +25,7 @@ class ClsHead(nn.Module):
     def __init__(self,
                  loss=dict(type='CrossEntropyLoss', loss_weight=1.0),
                  topk=(1, ),
-                 cal_acc=False,
+                 cal_acc=True,
                  init_cfg=None):
         super(ClsHead, self).__init__()
 

@@ -74,7 +74,7 @@ model = dict(
     orientation_head = dict(
             type='LinearClsHead',
             in_channels=256,
-            num_classes=5))
+            num_classes=4))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -151,8 +151,8 @@ img_norm_cfg = dict(
     std=[58.395, 57.12, 57.375], 
     to_rgb=True)
 data = dict(
-    imgs_per_gpu=1,
-    workers_per_gpu=1,
+    imgs_per_gpu=6,
+    workers_per_gpu=12,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/4class_train_hoe.json',
@@ -201,7 +201,7 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2), mean_teacher =
 lr_config = dict(
     policy='cosine',
     warmup='linear',
-    warmup_iters=500,
+    warmup_iters=1000,
     warmup_ratio=1.0 / 3,
     step=[110, 160])
 checkpoint_config = dict(interval=1)
@@ -215,10 +215,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 10
+total_epochs = 15
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dir/coco_mebow_faster_rcnn'
+work_dir = './work_dir/new_coco_mebow_faster_rcnn'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

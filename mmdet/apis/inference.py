@@ -198,3 +198,52 @@ def orientation_show_result(img, result, class_names, score_thr=0.3, out_file=No
         score_thr=score_thr,
         show=out_file is None,
         out_file=out_file)
+
+def orientation_lab_show_result(img, result, class_names, score_thr=0.5, out_file=None):
+    """Visualize the detection results on the image.
+
+    Args:
+        img (str or np.ndarray): Image filename or loaded image.
+        result (tuple[list] or list): The detection result, can be either
+            (bbox, segm) or just bbox.
+        class_names (list[str] or tuple[str]): A list of class names.
+        score_thr (float): The threshold to visualize the bboxes and masks.
+        out_file (str, optional): If specified, the visualization result will
+            be written to the out file instead of shown in a window.
+    """
+
+    assert isinstance(class_names, (tuple, list))
+    img = mmcv.imread(img)
+    if isinstance(result, tuple):
+        bbox_result, segm_result, orientation_results = result
+    else:
+        bbox_result, segm_result, orientation_results = result, None, None
+    
+    bboxes = np.vstack(bbox_result)
+    # draw segmentation masks
+    if segm_result is not None:
+        segms = mmcv.concat_list(segm_result)
+        inds = np.where(bboxes[:, -1] > score_thr)[0]
+        for i in inds:
+            color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
+            mask = maskUtils.decode(segms[i]).astype(np.bool)
+            img[mask] = img[mask] * 0.5 + color_mask * 0.5
+    # draw bounding boxes
+    labels = [
+        np.full(bbox.shape[0], i, dtype=np.int32)
+        for i, bbox in enumerate(bbox_result)
+    ]
+    labels = np.concatenate(labels)
+    ori_labels = np.argmax(orientation_results, axis=1)
+    ori_scores = np.max(orientation_results, axis=1)
+
+    mmcv.orientation_lab_imshow_det_bboxes(
+        img.copy(),
+        bboxes,
+        labels,
+        ori_labels,
+        ori_scores,
+        class_names=class_names,
+        score_thr=score_thr,
+        show=out_file is None,
+        out_file=out_file)

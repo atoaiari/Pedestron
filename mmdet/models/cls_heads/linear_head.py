@@ -36,7 +36,7 @@ class LinearClsHead(ClsHead):
         self.num_classes = num_classes
         self.roi_feat_size = roi_feat_size
 
-        in_channels *= (self.roi_feat_size * self.roi_feat_size)
+        self.in_channels *= (self.roi_feat_size * self.roi_feat_size)
 
         if self.num_classes <= 0:
             raise ValueError(
@@ -46,8 +46,9 @@ class LinearClsHead(ClsHead):
 
     def simple_test(self, x):
         """Test without augmentation."""
-        if isinstance(x, tuple):
-            x = x[-1]
+        # if isinstance(x, tuple):
+        #     x = x[-1]
+        x = x.view(x.size(0), -1)
         cls_score = self.fc(x)
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
