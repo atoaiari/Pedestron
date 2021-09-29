@@ -15,7 +15,7 @@ import torchvision
 
 
 @DETECTORS.register_module
-class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
+class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                        MaskTestMixin):
 
     def __init__(self,
@@ -31,7 +31,7 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super(NewHeadPoseFasterRCNN, self).__init__()
+        super(HeadPoseFasterRCNN, self).__init__()
 
         print("This is a modified Faster RCNN")
         
@@ -77,7 +77,7 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
 
     def init_weights(self, pretrained=None):
-        super(NewHeadPoseFasterRCNN, self).init_weights(pretrained)
+        super(HeadPoseFasterRCNN, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
         if self.with_neck:
             if isinstance(self.neck, nn.Sequential):
@@ -97,7 +97,7 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
             if not self.share_roi_extractor:
                 self.mask_roi_extractor.init_weights()
         self.orientation_bbox_roi_extractor.init_weights()
-        # self.orientation_bbox_head.init_weights()
+        self.orientation_bbox_head.init_weights()
 
 
     def extract_feat(self, img):
@@ -118,7 +118,6 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         x = self.extract_feat(img)
 
         orientation_labels = [lt[:,1] for lt in gt_labels]
-        # orientation_labels = torch.sub(orientation_labels, torch.ones(orientation_labels), alpha=1, out=None)
         gt_labels = [lt[:,0] for lt in gt_labels]
         losses = dict()
 
@@ -151,6 +150,7 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 assign_result = bbox_assigner.assign(
                     proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
                     gt_labels[i])
+                # print(torch.sum(assign_result.gt_inds))
                 sampling_result = bbox_sampler.sample(
                     assign_result,
                     proposal_list[i],
@@ -159,11 +159,30 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
                     feats=[lvl_feat[i][None] for lvl_feat in x])
                 sampling_results.append(sampling_result)
 
+        # print(f"sampling results: {len(sampling_results[0].pos_inds) + len(sampling_results[0].neg_inds)}")
+        # print(f"labels: {sampling_results[0].pos_gt_labels}")
+        # print(f"detection pos inds: {sampling_results[0].pos_inds}")
+        # print("####DETECTION#######")
+        
+        # print("\ngt")
+        # print(len(gt_bboxes))
+        # print(gt_bboxes)
+        # print("\nassign\n")
+        # print(f"gt_inds: {len(assign_result.gt_inds)}")
+        # print(f"labels: {len(assign_result.labels)}")
+        # print(assign_result.__dict__)
+        # print("\nsampling\n")
+        # print(torch.max(sampling_results[0].pos_inds))
+        # print(torch.max(sampling_results[0].neg_inds))
+        # print(sampling_results[0].__dict__)
+        # exit()
+
         # bbox head forward and loss
         if self.with_bbox:
             rois = bbox2roi([res.bboxes for res in sampling_results])
             # TODO: a more flexible way to decide which feature maps to use
-            bbox_feats = self.bbox_roi_extractor(x[:self.bbox_roi_extractor.num_inputs], rois)
+            bbox_feats = self.bbox_roi_extractor(x[:self.bbox_roi_extractor.num_inputs], 
+                                                rois)
             if self.with_shared_head:
                 bbox_feats = self.shared_head(bbox_feats)
             cls_score, bbox_pred = self.bbox_head(bbox_feats)
@@ -218,23 +237,63 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         ######################################################################
         # last bbox head forward and loss for orientation
         ######################################################################
+
+        # assign gts and sample proposals
+        sampling_results = []
+        bbox_assigner = build_assigner(self.train_cfg.orientation_head.assigner)
+        bbox_sampler = build_sampler(
+            self.train_cfg.orientation_head.sampler, context=self)
         num_imgs = img.size(0)
         if gt_bboxes_ignore is None:
             gt_bboxes_ignore = [None for _ in range(num_imgs)]
 
-        rois = bbox2roi([res.pos_bboxes for res in sampling_results])
+        for i in range(num_imgs):
+            assign_result = bbox_assigner.assign(
+                proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
+                orientation_labels[i])
+            sampling_result = bbox_sampler.sample(
+                assign_result,
+                proposal_list[i],
+                gt_bboxes[i],
+                orientation_labels[i],
+                feats=[lvl_feat[i][None] for lvl_feat in x])
+            sampling_results.append(sampling_result)
+
+        # print(f"orientation pos inds: {sampling_results[0].pos_inds}")
+        
+        # for i in range(num_imgs):
+        #     assign_result = bbox_assigner.assign(proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i], orientation_labels[i])
+        #     print(assign_result.labels)
+        #     sampling_results[i].pos_gt_labels = assign_result.labels[sampling_results[i].pos_inds.detach().cpu().numpy()]
+        
+
+        # print("####ORIENTATION#######")
+        # print(sampling_results[0].__dict__)
+
+        rois = bbox2roi([res.bboxes for res in sampling_results])
+        # TODO: a more flexible way to decide which feature maps to use
         bbox_feats = self.orientation_bbox_roi_extractor(x[:self.orientation_bbox_roi_extractor.num_inputs], rois)
+        print(bbox_feats.shape)
+        cls_score, bbox_pred = self.orientation_bbox_head(bbox_feats)
 
-        # orientation_gt_labels = orientation_labels[0].gather(0, sampling_results[0].pos_assigned_gt_inds)
-        orientation_gt_labels = torch.cat([orientation_labels[ix].gather(0, sampling_results[ix].pos_assigned_gt_inds) for ix in range(len(orientation_labels))])
-        orientation_losses = self.orientation_bbox_head(bbox_feats, orientation_gt_labels)
+        bbox_targets = self.orientation_bbox_head.get_target(sampling_results, gt_bboxes, orientation_labels, self.train_cfg.orientation_head)
+        loss_bbox = self.orientation_bbox_head.loss(cls_score, bbox_pred, *bbox_targets)
+        
+        # if loss_bbox['loss_cls'] > 50:
+        #     # print(np.moveaxis(np.array(torch.Tensor.cpu(img[0])), 0, -1).shape)
+        #     # imgg = imread(img[0].cpu().numpy().transpose(2, 0, 1))
+        #     # imwrite(imgg, '/home/vips4/atoaiari/pedestrian_detection/Pedestron/imgs_cache/img.jpg')
+        #     print(detection_loss)
+        #     print(loss_bbox)
+        #     print(f"Found image with loss>50 - img{self.wrong_images} - annotations: {orientation_labels}")
+        #     # save_image(img[0].cpu(), f'/home/vips4/atoaiari/pedestrian_detection/Pedestron/imgs_cache/img{self.wrong_images}.png')
+        #     self.wrong_images += 1
 
-        for name, value in orientation_losses.items():
-            if name == "accuracy":
-                losses['orientation.{}'.format(name)] = value["top-1"]
-            else:
-                losses['orientation.{}'.format(name)] = value
+        for name, value in loss_bbox.items():
+            losses['orientation.{}'.format(name)] = value
 
+        exit()
+        # print(losses)
         return losses
 
     def simple_test(self, img, img_meta, proposals=None, rescale=False):
@@ -253,14 +312,12 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         scale_factor = img_meta[0]['scale_factor']
 
         rois = bbox2roi(proposal_list)
-        bbox_feats = self.bbox_roi_extractor(x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
+        bbox_feats = self.bbox_roi_extractor(
+            x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
         if self.with_shared_head:
             bbox_feats = self.shared_head(bbox_feats)
 
         cls_score, bbox_pred = self.bbox_head(bbox_feats)
-
-        # bbox_label = cls_score.argmax(dim=1)
-        # rois = self.bbox_head.regress_by_class(rois, bbox_label, bbox_pred, img_meta[0])
 
         det_bboxes, det_labels = self.bbox_head.get_det_bboxes(
             rois,
@@ -272,26 +329,41 @@ class NewHeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
             cfg=self.test_cfg.rcnn)
 
         print(f"det_bboxes: {len(det_bboxes)} - det_labels: {len(det_labels)}")
+        print(f"lab: {det_labels}")
+
         bbox_results = bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
-        
-        print(len([r for r in bbox_results[0] if r[4]>0.5]))
-        
+
+        # bbox_label = cls_score.argmax(dim=1)
+        # rois = self.bbox_head.regress_by_class(rois, cls_score, bbox_pred, img_meta[0])
+
         ######################################################################
         # last bbox head for orientation
         ######################################################################
 
-        rois = bbox2roi([det_bboxes])
         bbox_feats = self.orientation_bbox_roi_extractor(
             x[:len(self.orientation_bbox_roi_extractor.featmap_strides)], rois)
 
-        orientation_results = self.orientation_bbox_head.simple_test(bbox_feats)
+        cls_score, bbox_pred = self.orientation_bbox_head(bbox_feats)
+        det_bboxes, det_labels = self.orientation_bbox_head.get_det_bboxes(
+            rois,
+            cls_score,
+            None,
+            img_shape,
+            scale_factor,
+            rescale=rescale,
+            cfg=self.test_cfg.rcnn)
+
+        print(f"det_bboxes: {len(det_bboxes)} - det_labels: {len(det_labels)}")
+        print(f"ori: {det_labels}")
+        
+        orientation_bbox_result = bbox2result(det_bboxes, det_labels, self.orientation_bbox_head.num_classes)
 
         if not self.with_mask:
-            return bbox_results, None, orientation_results
+            return bbox_results, None, orientation_bbox_result
         else:
             segm_results = self.simple_test_mask(
                 x, img_meta, det_bboxes, det_labels, rescale=rescale)
-            return bbox_results, segm_results, orientation_results
+            return bbox_results, segm_results, orientation_bbox_result
 
     def aug_test(self, imgs, img_metas, rescale=False):
         """Test with augmentations.

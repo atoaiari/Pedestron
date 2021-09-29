@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='NewHeadPoseFasterRCNN',
+    type='HeadPoseFasterRCNN',
     pretrained='open-mmlab://msra/hrnetv2_w32',
     backbone=dict(
         type='HRNet',
@@ -151,8 +151,8 @@ img_norm_cfg = dict(
     std=[58.395, 57.12, 57.375], 
     to_rgb=True)
 data = dict(
-    imgs_per_gpu=6,
-    workers_per_gpu=12,
+    imgs_per_gpu=4,
+    workers_per_gpu=8,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/4class_train_hoe.json',
@@ -172,8 +172,19 @@ data = dict(
                  saturation_range=(0.5, 1.5), hue_delta=18),
              random_crop=dict(min_ious=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), min_crop_size=0.1),
         ),
-	
     ),
+    val=dict(
+        type=dataset_type,
+        ann_file=data_root + 'annotations/4class_val_hoe.json',
+        img_prefix=data_root + 'images/val2017/',
+        img_scale=(500, 300),
+        img_norm_cfg=img_norm_cfg,
+        size_divisor=32,
+        flip_ratio=0,
+        with_mask=False,
+        with_crowd=False,
+        with_label=False,
+        test_mode=True),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/4class_val_hoe.json',
@@ -192,20 +203,20 @@ mean_teacher=True
 optimizer = dict(type='SGD', lr=0.001, momentum=0.9)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2), mean_teacher = dict(alpha=0.999))
 # learning policy
-# lr_config = dict(
-#     policy='step',
-#     warmup='linear',
-#     warmup_iters=500,
-#     warmup_ratio=1.0 / 3,
-#     step=[8, 11])
 lr_config = dict(
-    policy='cosine',
+    policy='step',
     warmup='linear',
-    warmup_iters=1000,
+    warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[110, 160])
+    step=[8, 11])
+# lr_config = dict(
+#     policy='cosine',
+#     warmup='linear',
+#     warmup_iters=1000,
+#     warmup_ratio=1.0 / 3,
+#     step=[110, 160])
 checkpoint_config = dict(interval=1)
-# evaluation = dict(interval=1, eval_hook='CocoDistEvalMRHook')
+evaluation = dict(interval=1)
 # yapf:disable
 log_config = dict(
     interval=50,
@@ -215,10 +226,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 15
+total_epochs = 20
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dir/new_coco_mebow_faster_rcnn'
+work_dir = './work_dir/dist_coco_mebow_faster_rcnn'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
