@@ -112,8 +112,6 @@ def imshow_det_bboxes(img,
         bboxes = bboxes[inds, :]
         labels = labels[inds]
 
-    print(f"labels: {len(labels)}")
-
     bbox_color = color_val(bbox_color)
     text_color = color_val(text_color)
 

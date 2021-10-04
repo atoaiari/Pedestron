@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='CascadeRCNN',
+    type='HeadPoseCascadeRCNN',
     num_stages=3,
     # pretrained='models_pretrained/backbones/cascade_rcnn_hrnetv2p_w32_20e_coco_20200208-928455a4.pth',
     pretrained='open-mmlab://msra/hrnetv2_w32',

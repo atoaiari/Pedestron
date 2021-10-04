@@ -10,7 +10,7 @@ from mmcv.parallel import scatter, collate
 from pycocotools.cocoeval import COCOeval
 from torch.utils.data import Dataset
 
-from .coco_utils import results2json, fast_eval_recall
+from .coco_utils import results2json, fast_eval_recall, orientation_results2json
 from .mean_ap import eval_map
 from .eval_mr import COCOeval as COCOMReval
 from mmdet import datasets
@@ -207,3 +207,40 @@ class CocoDistEvalMRHook(DistEvalHook):
                     mr=cocoEval.stats[:8])
         runner.log_buffer.ready = True
         os.remove(result_files['bbox'])
+
+
+class OrientationCocoDistEvalmAPHook(DistEvalHook):
+
+    def evaluate(self, runner, results):
+        tmp_file = osp.join(runner.work_dir, 'temp_0')
+        result_files = orientation_results2json(self.dataset, results, tmp_file)
+
+        res_types = ['bbox', 'segm', 'orientation'] if runner.model.module.with_mask else ['bbox', 'orientation']
+
+        print("\nresults\n")
+        print(result_files)
+        print("\ncocoGt\n")
+        print(self.dataset.coco)
+        print("\nhalohalo\n")
+        
+        cocoGt = self.dataset.coco
+        imgIds = cocoGt.getImgIds()
+        for res_type in res_types:
+            cocoDt = cocoGt.loadRes(result_files[res_type])
+            iou_type = res_type
+            cocoEval = COCOeval(cocoGt, cocoDt, iou_type)
+            cocoEval.params.imgIds = imgIds
+            cocoEval.evaluate()
+            cocoEval.accumulate()
+            cocoEval.summarize()
+            metrics = ['mAP', 'mAP_50', 'mAP_75', 'mAP_s', 'mAP_m', 'mAP_l']
+            for i in range(len(metrics)):
+                key = '{}_{}'.format(res_type, metrics[i])
+                val = float('{:.3f}'.format(cocoEval.stats[i]))
+                runner.log_buffer.output[key] = val
+            runner.log_buffer.output['{}_mAP_copypaste'.format(res_type)] = (
+                '{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} '
+                '{ap[4]:.3f} {ap[5]:.3f}').format(ap=cocoEval.stats[:6])
+        runner.log_buffer.ready = True
+        for res_type in res_types:
+            os.remove(result_files[res_type])

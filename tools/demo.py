@@ -10,9 +10,8 @@ import torch
 import glob
 import json
 import mmcv
-import numpy as np
 
-from mmdet.apis import inference_detector, init_detector, show_result, orientation_show_result
+from mmdet.apis import inference_detector, init_detector, show_result
 
 
 def parse_args():
@@ -31,13 +30,15 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
+
 def mock_detector(model, image_name, output_dir):
     image = cv2.imread(image_name)
     results = inference_detector(model, image)
     basename = os.path.basename(image_name).split('.')[0]
     result_name = basename + "_result.jpg"
     result_name = os.path.join(output_dir, result_name)
-    orientation_show_result(image, results, model.CLASSES, out_file=result_name)
+    show_result(image, results, model.CLASSES, out_file=result_name)
 
 def create_base_dir(dest):
     basedir = os.path.dirname(dest)
@@ -51,7 +52,7 @@ def run_detector_on_dataset():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     print(input_dir)
-    eval_imgs = glob.glob(os.path.join(input_dir, '*.png')) + glob.glob(os.path.join(input_dir, '*.jpg')) + glob.glob(os.path.join(input_dir, '*.jpeg'))
+    eval_imgs = glob.glob(os.path.join(input_dir, '*.png')) + glob.glob(os.path.join(input_dir, '*.jpeg')) + glob.glob(os.path.join(input_dir, '*.jpg'))
     print(eval_imgs)
 
     model = init_detector(

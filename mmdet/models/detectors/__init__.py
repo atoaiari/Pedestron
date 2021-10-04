@@ -15,9 +15,11 @@ from .mgan import MGAN
 from .csp import CSP
 
 from .head_pose_faster_rcnn import HeadPoseFasterRCNN
+from .head_pose_cascade_rcnn import HeadPoseCascadeRCNN
 
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
-    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN','MGAN', 'CSP', 'HeadPoseFasterRCNN'
+    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN','MGAN', 'CSP', 
+    'HeadPoseFasterRCNN', 'HeadPoseCascadeRCNN'
 ]
