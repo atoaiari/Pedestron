@@ -122,7 +122,7 @@ class HeadPoseCascadeRCNN(BaseDetector, RPNTestMixin):
                 self.mask_head[i].init_weights()
 
         self.orientation_bbox_roi_extractor.init_weights()
-        # self.orientation_bbox_head.init_weights()
+        self.orientation_bbox_head.init_weights()
 
 
     def extract_feat(self, img):
@@ -256,29 +256,49 @@ class HeadPoseCascadeRCNN(BaseDetector, RPNTestMixin):
         # last bbox head forward and loss for orientation
         ######################################################################
 
+        orientation_train_cfg = self.train_cfg.orientation_head
+        lw = self.train_cfg.stage_loss_weights[i]
+
+        # assign gts and sample proposals
+        sampling_results = []
+        bbox_assigner = build_assigner(orientation_train_cfg.assigner)
+        bbox_sampler = build_sampler(
+            orientation_train_cfg.sampler, context=self)
         num_imgs = img.size(0)
         if gt_bboxes_ignore is None:
             gt_bboxes_ignore = [None for _ in range(num_imgs)]
 
-        rois = bbox2roi([res.pos_bboxes for res in sampling_results])
-        bbox_feats = self.orientation_bbox_roi_extractor(x[:self.orientation_bbox_roi_extractor.num_inputs], rois)
-        
-        orientation_gt_labels = torch.cat([orientation_labels[ix].gather(0, sampling_results[ix].pos_assigned_gt_inds) for ix in range(len(orientation_labels))])
-        loss_orientation = self.orientation_bbox_head(bbox_feats, orientation_gt_labels)
+        for j in range(num_imgs):
+            assign_result = bbox_assigner.assign(
+                proposal_list[j], gt_bboxes[j], gt_bboxes_ignore[j],
+                orientation_labels[j])
+            sampling_result = bbox_sampler.sample(
+                assign_result,
+                proposal_list[j],
+                gt_bboxes[j],
+                orientation_labels[j],
+                feats=[lvl_feat[j][None] for lvl_feat in x])
+            sampling_results.append(sampling_result)
 
-        for name, value in loss_orientation.items():
-            if name == "accuracy":
-                losses['orientation.{}'.format(name)] = value["top-1"]
-            else:
-                losses['orientation.{}'.format(name)] = value   
+        bbox_roi_extractor = self.orientation_bbox_roi_extractor
+        bbox_head = self.orientation_bbox_head
+
+        rois = bbox2roi([res.bboxes for res in sampling_results])
+        bbox_feats = bbox_roi_extractor(x[:bbox_roi_extractor.num_inputs],
+                                        rois)
+        cls_score, bbox_pred = bbox_head(bbox_feats)
+
+        bbox_targets = bbox_head.get_target(sampling_results, gt_bboxes,
+                                            orientation_labels, orientation_train_cfg)
+        loss_bbox = bbox_head.loss(cls_score, bbox_pred, *bbox_targets)
+        print(loss_bbox)
+        for name, value in loss_bbox.items():
+            losses['orientation.{}'.format(name)] = (
+                value * lw if 'loss' in name else value)    
 
         return losses
 
     def simple_test(self, img, img_meta, proposals=None, rescale=False):
-        """Test without augmentation."""
-        print("\nCascade RCCN w/ branch test")
-
-        assert self.with_bbox, "Bbox head must be implemented."
         x = self.extract_feat(img)
         proposal_list = self.simple_test_rpn(
             x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
@@ -347,6 +367,31 @@ class HeadPoseCascadeRCNN(BaseDetector, RPNTestMixin):
                 rois = bbox_head.regress_by_class(rois, bbox_label, bbox_pred,
                                                   img_meta[0])
 
+        ######################################################################
+        # last bbox head for orientation
+        ######################################################################
+
+        bbox_roi_extractor = self.orientation_bbox_roi_extractor
+        bbox_head = self.orientation_bbox_head
+
+        bbox_feats = bbox_roi_extractor(
+            x[:len(bbox_roi_extractor.featmap_strides)], rois)
+
+        cls_score, _ = bbox_head(bbox_feats)
+        det_bboxes, det_labels = self.orientation_bbox_head.get_det_bboxes(
+            rois,
+            cls_score,
+            bbox_pred,
+            img_shape,
+            scale_factor,
+            rescale=rescale,
+            cfg=rcnn_test_cfg)
+        orientation_bbox_result = bbox2result(det_bboxes, det_labels,
+                                  self.orientation_bbox_head.num_classes)
+        ms_bbox_result['orientation'] = orientation_bbox_result
+
+        ######################################################################
+
         cls_score = sum(ms_scores) / self.num_stages
         det_bboxes, det_labels = self.bbox_head[-1].get_det_bboxes(
             rois,
@@ -387,25 +432,13 @@ class HeadPoseCascadeRCNN(BaseDetector, RPNTestMixin):
                     ori_shape, scale_factor, rescale)
             ms_segm_result['ensemble'] = segm_result
 
-        ######################################################################
-        # last bbox head for orientation
-        ######################################################################
-
-        rois = bbox2roi([det_bboxes])
-        bbox_feats = self.orientation_bbox_roi_extractor(
-            x[:len(self.orientation_bbox_roi_extractor.featmap_strides)], rois)
-
-        orientation_results = self.orientation_bbox_head.simple_test(bbox_feats)
-
-        ######################################################################
-
         if not self.test_cfg.keep_all_stages:
             if self.with_mask:
                 results = (ms_bbox_result['ensemble'],
                            ms_segm_result['ensemble'],
-                           orientation_results)
+                           ms_bbox_result['orientation'])
             else:
-                results = (ms_bbox_result['ensemble'], None, orientation_results)
+                results = (ms_bbox_result['ensemble'], None, ms_bbox_result['orientation'])
         else:
             if self.with_mask:
                 results = {
@@ -429,5 +462,5 @@ class HeadPoseCascadeRCNN(BaseDetector, RPNTestMixin):
         else:
             if isinstance(result, dict):
                 result = result['ensemble']
-        super(HeadPoseCascadeRCNN, self).show_result(data, result, img_norm_cfg,
+        super(CascadeRCNN, self).show_result(data, result, img_norm_cfg,
                                              **kwargs)

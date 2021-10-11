@@ -56,7 +56,7 @@ class CocoDataset(CustomDataset):
                 valid_inds.append(i)
         return valid_inds
 
-    def _parse_ann_info(self, ann_info, with_mask=True):
+    def _parse_ann_info(self, ann_info, with_mask=True, with_orientation=False):
         """Parse bbox and mask annotation.
 
         Args:
@@ -88,7 +88,7 @@ class CocoDataset(CustomDataset):
             x1, y1, w, h = ann['bbox']
             
             # added a new variable
-            orientation_labels.append(ann['orientation_class'])
+            orientation_labels.append(ann['orientation_class']-1)
             # print(f"image {ann['id']} - orientation {orientation_label}")
 
             #if ann['area'] <= 0 or w < 1 or h < 1:
@@ -132,8 +132,10 @@ class CocoDataset(CustomDataset):
             gt_bboxes_ignore = np.zeros((0, 4), dtype=np.float32)
         
         # print(f"gtlabels: {only_gt_labels} - orientation_labels: {orientation_labels}")
-        ann = dict(
-            bboxes=gt_bboxes, labels=gt_labels, bboxes_ignore=gt_bboxes_ignore)
+        if with_orientation:
+            ann = dict(bboxes=gt_bboxes, det_labels=only_gt_labels, orientation_labels=orientation_labels, bboxes_ignore=gt_bboxes_ignore)
+        else:
+            ann = dict(bboxes=gt_bboxes, labels=gt_labels, bboxes_ignore=gt_bboxes_ignore)
 
         if with_mask:
             ann['masks'] = gt_masks

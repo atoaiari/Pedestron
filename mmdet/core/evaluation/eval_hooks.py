@@ -15,6 +15,10 @@ from .mean_ap import eval_map
 from .eval_mr import COCOeval as COCOMReval
 from mmdet import datasets
 
+import json
+from .bbox_overlaps import bbox_overlaps
+from sklearn.metrics import classification_report
+
 
 class DistEvalHook(Hook):
 
@@ -209,22 +213,52 @@ class CocoDistEvalMRHook(DistEvalHook):
         os.remove(result_files['bbox'])
 
 
+def xywh2xyxy(bbox):
+        return [
+            bbox[0],
+            bbox[1],
+            bbox[0] + bbox[2] - 1,
+            bbox[1] + bbox[3] - 1,
+        ]
+
 class OrientationCocoDistEvalmAPHook(DistEvalHook):
 
     def evaluate(self, runner, results):
         tmp_file = osp.join(runner.work_dir, 'temp_0')
         result_files = orientation_results2json(self.dataset, results, tmp_file)
 
-        res_types = ['bbox', 'segm', 'orientation'] if runner.model.module.with_mask else ['bbox', 'orientation']
-
-        print("\nresults\n")
-        print(result_files)
-        print("\ncocoGt\n")
-        print(self.dataset.coco)
-        print("\nhalohalo\n")
+        res_types = ['bbox', 'segm'] if runner.model.module.with_mask else ['bbox']
         
         cocoGt = self.dataset.coco
         imgIds = cocoGt.getImgIds()
+        
+        # gt_ann_ids = cocoGt.getAnnIds(imgIds=imgIds)
+        # gt_ann_info = cocoGt.loadAnns(gt_ann_ids)
+        # gt_ann = self.dataset._parse_ann_info(ann_info, with_mask=self.dataset.with_mask, with_orientation=True)
+
+        with open(result_files['bbox']) as f:
+            bbox_result = json.load(f)
+
+        pred_anns = []
+        gt_anns = []
+        for i, res in enumerate(bbox_result):
+            if res['score'] >= 0.5:
+                gt_ann_ids = cocoGt.getAnnIds(imgIds=[res['image_id']])
+                gt_ann_info = cocoGt.loadAnns(gt_ann_ids)
+                gt_ann = self.dataset._parse_ann_info(gt_ann_info, with_mask=self.dataset.with_mask, with_orientation=True)
+                pred_bbox = np.array([xywh2xyxy(res['bbox'])])
+                gt_bbox = np.array([gt_bbox for gt_bbox in gt_ann['bboxes']])
+                max_idx = np.argmax(bbox_overlaps(pred_bbox, gt_bbox))
+                gt_anns.append(gt_ann['orientation_labels'][max_idx])
+                pred_anns.append(res['orientation'])
+
+        if pred_anns:
+            runner.log_buffer.output['classification_report'] = classification_report(gt_anns, pred_anns)
+            print(classification_report(gt_anns, pred_anns))
+            runner.log_buffer.ready = True
+        else:
+            print("No positive bboxes")
+
         for res_type in res_types:
             cocoDt = cocoGt.loadRes(result_files[res_type])
             iou_type = res_type

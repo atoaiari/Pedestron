@@ -183,11 +183,12 @@ def orientation_results2json(dataset, results, out_file):
     result_files['bbox'] = '{}.{}.json'.format(out_file, 'bbox')
     result_files['proposal'] = '{}.{}.json'.format(out_file, 'bbox')
     result_files['segm'] = '{}.{}.json'.format(out_file, 'segm')
-    result_files['orientation'] = '{}.{}.json'.format(out_file, 'orientation')
+    # result_files['orientation'] = '{}.{}.json'.format(out_file, 'orientation')
     mmcv.dump(json_results[0], result_files['bbox'])
     mmcv.dump(json_results[1], result_files['segm'])
-    mmcv.dump(json_results[2], result_files['orientation'])
+    # mmcv.dump(json_results[2], result_files['orientation'])
     return result_files
+
 
 def orientation2json(dataset, results):
     bbox_json_results = []
@@ -196,6 +197,7 @@ def orientation2json(dataset, results):
     for idx in range(len(dataset)):
         img_id = dataset.img_ids[idx]
         det, seg, ori = results[idx]
+
         for label in range(len(det)):
             # bbox results
             bboxes = det[label]
@@ -205,6 +207,8 @@ def orientation2json(dataset, results):
                 data['bbox'] = xyxy2xywh(bboxes[i])
                 data['score'] = float(bboxes[i][4])
                 data['category_id'] = dataset.cat_ids[label]
+                data['orientation'] = int(np.argmax(ori[i]))
+                data['orientation_score'] = float(np.max(ori[i]))
                 bbox_json_results.append(data)
 
             # segm results
@@ -226,11 +230,5 @@ def orientation2json(dataset, results):
                     data['segmentation'] = segms[i]
                     segm_json_results.append(data)
 
-        for i in range(len(ori)):
-            data = dict()
-            data['image_id'] = img_id
-            data['orientation'] = int(np.argmax(i))
-            data['score'] = float(np.max(i))
-            orientation_json_results.append(data)
 
-    return bbox_json_results, segm_json_results, orientation_json_results
+    return bbox_json_results, segm_json_results

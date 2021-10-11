@@ -97,7 +97,7 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
             if not self.share_roi_extractor:
                 self.mask_roi_extractor.init_weights()
         self.orientation_bbox_roi_extractor.init_weights()
-        # self.orientation_bbox_head.init_weights()
+        self.orientation_bbox_head.init_weights()
 
 
     def extract_feat(self, img):
@@ -227,9 +227,9 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
         # orientation_gt_labels = orientation_labels[0].gather(0, sampling_results[0].pos_assigned_gt_inds)
         orientation_gt_labels = torch.cat([orientation_labels[ix].gather(0, sampling_results[ix].pos_assigned_gt_inds) for ix in range(len(orientation_labels))])
-        orientation_losses = self.orientation_bbox_head(bbox_feats, orientation_gt_labels)
+        loss_orientation = self.orientation_bbox_head(bbox_feats, orientation_gt_labels)
 
-        for name, value in orientation_losses.items():
+        for name, value in loss_orientation.items():
             if name == "accuracy":
                 losses['orientation.{}'.format(name)] = value["top-1"]
             else:
@@ -274,7 +274,7 @@ class HeadPoseFasterRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         print(f"det_bboxes: {len(det_bboxes)} - det_labels: {len(det_labels)}")
         bbox_results = bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
         
-        print(len([r for r in bbox_results[0] if r[4]>0.5]))
+        # print(len([r for r in bbox_results[0] if r[4]>0.5]))
         
         ######################################################################
         # last bbox head for orientation

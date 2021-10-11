@@ -2,7 +2,6 @@
 model = dict(
     type='HeadPoseCascadeRCNN',
     num_stages=3,
-    # pretrained='models_pretrained/backbones/cascade_rcnn_hrnetv2p_w32_20e_coco_20200208-928455a4.pth',
     pretrained='open-mmlab://msra/hrnetv2_w32',
     backbone=dict(
         type='HRNet',
@@ -11,8 +10,8 @@ model = dict(
                 num_modules=1,
                 num_branches=1,
                 block='BOTTLENECK',
-                num_blocks=(4, ),
-                num_channels=(64, )),
+                num_blocks=(4,),
+                num_channels=(64,)),
             stage2=dict(
                 num_modules=1,
                 num_branches=2,
@@ -30,8 +29,7 @@ model = dict(
                 num_branches=4,
                 block='BASIC',
                 num_blocks=(4, 4, 4, 4),
-                num_channels=(32, 64, 128, 256))
-        ),
+                num_channels=(32, 64, 128, 256))),
         #frozen_stages=-1,
         norm_eval=False,
     ),
@@ -116,16 +114,9 @@ model = dict(
                 loss_weight=1.0))
     ],
     orientation_head = dict(
-            type='BBoxHead',
-            with_cls=True,
-            with_reg=False,
+            type='LinearClsHead',
             in_channels=256,
-            roi_feat_size=7,
-            num_classes=9,
-            loss_cls=dict(
-                type='CrossEntropyLoss',
-                use_sigmoid=False,
-                loss_weight=1.0)),
+            num_classes=4),
     mask_roi_extractor=dict(
         type='SingleRoIExtractor',
         roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),
@@ -215,23 +206,7 @@ train_cfg = dict(
             pos_weight=-1,
             debug=False)
     ],
-    stage_loss_weights=[1, 0.5, 0.25],
-    orientation_head = dict(
-        assigner=dict(
-            type='MaxIoUAssigner',
-            pos_iou_thr=0.6,
-            neg_iou_thr=0.6,
-            min_pos_iou=0.6,
-            ignore_iof_thr=0.7),
-        sampler=dict(
-            type='RandomSampler',
-            num=512,
-            pos_fraction=0.25,
-            neg_pos_ub=-1,
-            add_gt_as_proposals=True),
-        mask_size=28,
-        pos_weight=-1,
-        debug=False))
+    stage_loss_weights=[1, 0.5, 0.25])
 test_cfg = dict(
     rpn=dict(
         nms_across_levels=False,
@@ -254,11 +229,10 @@ img_norm_cfg = dict(
     std=[58.395, 57.12, 57.375],
     to_rgb=True)
 data = dict(
-    imgs_per_gpu=1,
-    workers_per_gpu=1,
+    imgs_per_gpu=4,
+    workers_per_gpu=8,
     train=dict(
         type=dataset_type,
-        # ann_file=data_root + 'annotations/complete_mebow_dataset/complete_train_hoe.json',
         ann_file=data_root + 'annotations/4class_train_hoe.json',
         img_prefix=data_root + 'images/train2017/',
         img_scale=(500, 300),
@@ -277,9 +251,20 @@ data = dict(
              random_crop=dict(min_ious=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), min_crop_size=0.1),
          ),
     ),
+    val=dict(
+        type=dataset_type,
+        ann_file=data_root + 'annotations/4class_val_hoe.json',
+        img_prefix=data_root + 'images/val2017/',
+        img_scale=(500, 300),
+        img_norm_cfg=img_norm_cfg,
+        size_divisor=32,
+        flip_ratio=0,
+        with_mask=False,
+        with_crowd=False,
+        with_label=False,
+        test_mode=True),
     test=dict(
         type=dataset_type,
-        # ann_file=data_root + 'annotations/complete_mebow_dataset/complete_val_hoe.json',
         ann_file=data_root + 'annotations/4class_val_hoe.json',
         img_prefix=data_root + 'images/val2017/',
         img_scale=(500, 300),
@@ -292,7 +277,8 @@ data = dict(
         test_mode=True))
 # optimizer
 mean_teacher=True
-optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+# optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2), mean_teacher = dict(alpha=0.999))
 # learning policy
 lr_config = dict(
@@ -302,6 +288,7 @@ lr_config = dict(
     warmup_ratio=1.0 / 3,
     step=[110, 160])
 checkpoint_config = dict(interval=1)
+evaluation = dict(interval=1, eval_hook='OrientationCocoDistEvalmAPHook')
 # yapf:disable
 log_config = dict(
     interval=50,
@@ -311,10 +298,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 10
+total_epochs = 20
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dir/coco_mebow'
-load_from = None
+work_dir = './work_dir/dist_coco_mebow_cascade_rcnn'
+load_from = "./models_pretrained/irtiza_models/hrnet_cascadercnn_epoch_19.pth"
 resume_from = None
 workflow = [('train', 1)]
